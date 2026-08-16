@@ -11,11 +11,6 @@ HAND_CONNECTIONS = [
     (0, 17)                                   # Palma base
 ]
 
-MARGIN = 10
-FONT_SIZE = 0.8
-FONT_THICKNESS = 2
-HANDEDNESS_TEXT_COLOR = (88, 205, 54) # Verde
-
 def draw_landmarks_on_image(rgb_image: np.ndarray, detection_result) -> np.ndarray:
     hand_landmarks_list = detection_result.hand_landmarks
     handedness_list = detection_result.handedness
@@ -25,39 +20,21 @@ def draw_landmarks_on_image(rgb_image: np.ndarray, detection_result) -> np.ndarr
     for idx in range(len(hand_landmarks_list)):
         hand_landmarks = hand_landmarks_list[idx] 
 
-        # Convertir coordenadas normalizadas (0.0 a 1.0) a píxeles exactos
+        # Normalized coords into Pixels
         points = []
         for lm in hand_landmarks:
             px = int(lm.x * width)
             py = int(lm.y * height)
             points.append((px, py))
 
-        # 1. Dibujar las líneas de conexión entre puntos
+        # 1. Draw the lines
         for start_idx, end_idx in HAND_CONNECTIONS:
             cv2.line(annotated_image, points[start_idx], points[end_idx], (255, 255, 255), 2)
 
-        # 2. Dibujar los puntos
+        # 2. Draw the dots
         for px, py in points:
             cv2.circle(annotated_image, (px, py), 5, (0, 0, 255), -1)
 
-        # Right or Left and place text, UNNECESSARY
-        #handedness = handedness_list[idx] 
-        """
-        x_coords = [p[0] for p in points]
-        y_coords = [p[1] for p in points]
-        text_x = max(0, min(x_coords))
-        text_y = max(20, min(y_coords) - MARGIN)
-        cv2.putText(
-            annotated_image, 
-            f"{handedness[0].category_name}",
-            (text_x, text_y), 
-            cv2.FONT_HERSHEY_DUPLEX,
-            FONT_SIZE, 
-            HANDEDNESS_TEXT_COLOR, 
-            FONT_THICKNESS, 
-            cv2.LINE_AA
-        )
-        """
     return annotated_image
 
 BaseOptions = mp.tasks.BaseOptions
@@ -94,8 +71,6 @@ def main():
             # Turning the frame (NumPy array) into something the Mediapipe can work with 
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
             result = landmarker.detect_for_video(mp_image, cv2.getTickCount())
-
-
 
             # Display the frame
             annotated_image = draw_landmarks_on_image(rgb_frame, result)

@@ -17,12 +17,12 @@ def draw_landmarks_on_image(rgb_image: np.ndarray, detection_result) -> np.ndarr
     annotated_image = np.copy(rgb_image)
     height, width, _ = annotated_image.shape
 
-    for idx in range(len(hand_landmarks_list)):
-        hand_landmarks = hand_landmarks_list[idx] 
+    for idx in range(len(hand_landmarks_list)): # For each hand in handlandmarks
+        hand_landmarks = hand_landmarks_list[idx] # Get the landmarks coords
 
         # Normalized coords into Pixels
         points = []
-        for lm in hand_landmarks:
+        for lm in hand_landmarks: # Gets the x and y from the hand_landmarks data structure
             px = int(lm.x * width)
             py = int(lm.y * height)
             points.append((px, py))
@@ -46,7 +46,19 @@ VisionRunningMode = mp.tasks.vision.RunningMode
 def print_result(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
     print('hand landmarker result: {}'.format(result))
 
+def write_position_on_file(hand_pos):
+    pos = hand_pos
+    pos_list = []
+    for i in pos:
+        pos_list.append((i.x,i.y))
+    pos_tupple = tuple(pos_list)
+    positions_set.add(pos_tupple)
+    positions_file.write(str(pos_tupple)+'\n')
+
 def main():
+    positions_file = open('positions.txt', 'w+', encoding="utf-8")
+    positions_set = set(positions_file.readlines())
+
     options = HandLandmarkerOptions(
         base_options=BaseOptions(model_asset_path='hand_landmarker.task'),
         running_mode=VisionRunningMode.VIDEO
@@ -75,6 +87,10 @@ def main():
             # Display the frame
             annotated_image = draw_landmarks_on_image(rgb_frame, result)
             cv2.imshow("camera",cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))        
+
+            # Press 'p' to save current position on a file
+            if cv2.waitKey(1) == ord('p'):
+                write_position_on_file(result.hand_landmarks[0])
 
             # Press 'q' on the keyboard to exit the loop
             if cv2.waitKey(1) == ord('q'):

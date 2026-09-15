@@ -2,6 +2,12 @@ import cv2
 import mediapipe as mp
 import ast
 import numpy as np
+import math
+import subprocess
+
+UMBRAL_VALUE = 1
+
+command_number = 0
 
 HAND_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 4),           # Pulgar
@@ -47,15 +53,37 @@ VisionRunningMode = mp.tasks.vision.RunningMode
 def print_result(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
     print('hand landmarker result: {}'.format(result))
 
+def truncate(num):
+    decim = 10 ** UMBRAL_VALUE
+    return math.trunc(num * decim)/decim
+
 def write_position_on_file(hand_pos, positions_set, positions_file, command_file):
     pos_list = []
+    reference_point = ((hand_pos[0].x),(hand_pos[0].y))
     for i in hand_pos:
-        pos_list.append((i.x,i.y))
+        point = (i.x,i.x)
+        distance = math.dist(reference_point, point)
+        pos_list.append(truncate(distance))
     pos_tupple = tuple(pos_list)
+    print(pos_tupple)
     command = command_file.readline().strip()
     positions_set[pos_tupple] = command
     positions_file.write(str(pos_tupple)+'\n')
     return positions_set
+
+def compare_positions(hand_pos, positions_set):
+    pos_list = []
+    reference_point = ((hand_pos[0].x),(hand_pos[0].y))
+    for i in hand_pos:
+        point = (i.x,i.x)
+        distance = math.dist(reference_point, point)
+        pos_list.append(truncate(distance))
+    pos_tupple = tuple(pos_list)
+    if pos_tupple in positions_set:
+        execute_command(positions_set[pos_tupple])
+
+def execute_command(command):
+    subprocess.run(command, shell=True)
 
 def main():
     # We open the read only commands file
@@ -65,9 +93,11 @@ def main():
     positions_file = open('positions.txt', 'r', encoding="utf-8") 
     # Save them on a dictionary as keys
     positions_set = {} 
-    for i in positions_file.readlines():
-        command = command_file.readline().strip() 
-        positions_set[ast.literal_eval(i)] = command # Commands as values
+    all_positions = positions_file.readlines()
+    if len(all_positions) >= 1:
+        for i in all_positions:
+            command = command_file.readline().strip() 
+            positions_set[ast.literal_eval(i)] = command # Commands as values
     positions_file.close()
     # And we open the file as a append file
     positions_file = open('positions.txt', 'a', encoding="utf-8")
@@ -102,9 +132,12 @@ def main():
             annotated_image = draw_landmarks_on_image(rgb_frame, result)
             cv2.imshow("camera",cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))        
 
+            if len(result.hand_landmarks) >= 1:
+                compare_positions(result.hand_landmarks[0], positions_set)
+
             pressed_key = cv2.waitKey(1)
             # Press 'p' to save current position on a file
-            if pressed_key == ord('p'):
+            if pressed_key == ord('p') and len(result.hand_landmarks) >= 1:
                 positions_set = write_position_on_file(result.hand_landmarks[0], positions_set, positions_file, command_file)
             # Press 'q' on the keyboard to exit the loop
             elif pressed_key == ord('q'):
